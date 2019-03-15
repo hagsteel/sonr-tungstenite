@@ -5,6 +5,6 @@
 
 ## TODO:
 
-[ ] Websocket client (Acceptor)
-[ ] Tungstenite callback
-[ ] Docs
+- [ ] Websocket client (Acceptor)
+- [ ] Tungstenite callback
+- [ ] Docs
