@@ -1,67 +1,77 @@
+use std::fmt::Debug;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::io::{Read, Write};
+use std::marker::PhantomData;
 
-use sonr::{Token, Evented};
+use sonr::net::stream::StreamRef;
 use sonr::prelude::*;
+use sonr::{Evented, Token};
+use tungstenite::client;
 use tungstenite::handshake::client::ClientHandshake;
 use tungstenite::handshake::{HandshakeError, MidHandshake};
 use tungstenite::WebSocket;
-use tungstenite::client; 
+use url::Url;
 
-// -----------------------------------------------------------------------------
-// 		- WIP -
-// -----------------------------------------------------------------------------
-
-pub struct WebsocketConnector<T, S> 
+pub struct WebSocketConnector<T>
 where
-    T: AsRef<Stream<S>> + Read + Write,
-    S: Read + Write + Evented,
-{ 
-    _p: PhantomData<S>,
-    handshakes: HashMap<Token, ClientHandshake<T>>, 
+    T: StreamRef + Read + Write,
+{
+    handshakes: HashMap<Token, MidHandshake<ClientHandshake<T>>>,
 }
 
-impl<T, S> Reactor for WebsocketConnector<T, S> 
+impl<T> WebSocketConnector<T>
 where
-    T: AsRef<Stream<S>> + Read + Write,
-    S: Read + Write + Evented,
-{ 
-    type Input = T;
+    T: StreamRef + Read + Write,
+{
+    pub fn new() -> Self {
+        Self { 
+            handshakes: HashMap::new(),
+        }
+    }
+}
+
+impl<T> Reactor for WebSocketConnector<T>
+where
+    T: StreamRef + Read + Write,
+{
+    type Input = (String, T); // String = Url
     type Output = WebSocket<T>;
 
     fn react(&mut self, reaction: Reaction<Self::Input>) -> Reaction<Self::Output> {
+        use Reaction::*;
         match reaction {
-            Reaction::Value(stream) => {
-                let token = stream.as_ref().token();
-                let res = client(stream);
+            Value((url, stream)) => {
+                let token = stream.token();
+                let url = Url::parse(&url).unwrap();
+                let res = client(url, stream);
 
                 match res {
-                    Ok(websocket) => return Reaction::Value(websocket),
+                    Ok((websocket, response)) => Value(websocket),
                     Err(HandshakeError::Interrupted(mid_shake)) => {
                         self.handshakes.insert(token, mid_shake);
-                        Reaction::Continue
+                        Continue
                     }
                     Err(HandshakeError::Failure(_e)) => {
-                        return Reaction::Continue; /* Let the connections drop on error for now */
+                        Continue /* Let the connections drop on error for now */
                     }
                 }
             }
-            Reaction::Event(event) => {
+            Event(event) => {
                 if let Some(stream) = self.handshakes.remove(&event.token()) {
-                    match stream.handshake() {
-                        Ok(stream) => return Reaction::Value(stream),
+                    let res = stream.handshake();
+                    match res {
+                        Ok((stream, response)) => Value(stream),
                         Err(HandshakeError::Interrupted(mid_shake)) => {
                             self.handshakes.insert(event.token(), mid_shake);
-                            return Reaction::Continue;
+                            Continue
                         }
-                        Err(_e) => return Reaction::Continue, /* Let the connections drop on error for now */
+                        Err(_e) => Continue, /* Let the connections drop on error for now */
                     }
                 } else {
-                    Reaction::Event(event)
+                    event.into()
                 }
             }
-            Reaction::Continue => Reaction::Continue,
+            Continue => Continue,
         }
     }
 }

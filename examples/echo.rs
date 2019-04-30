@@ -9,7 +9,7 @@ use sonr::prelude::*;
 use sonr::reactor::Reactor;
 use sonr::*;
 use sonr_tls::TlsAcceptor;
-use sonr_tungstenite::WebsocketAcceptor;
+use sonr_tungstenite::WebSocketAcceptor;
 
 use tungstenite::handshake::server::NoCallback;
 use tungstenite::{Message, WebSocket};
@@ -89,7 +89,7 @@ fn main() {
     let acceptor = TlsAcceptor::<TcpStream>::new(&path, &pass).unwrap();
     let connections = Connections::new();
 
-    let ws_accept = WebsocketAcceptor::<_, _, NoCallback>::new().map(|s| {
+    let ws_accept = WebSocketAcceptor::<_, _, NoCallback>::new().map(|s| {
         eprintln!("connected...");
         s
     });

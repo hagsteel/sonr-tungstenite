@@ -1,5 +1,5 @@
 [package]
-name = "sonr-tungstenite"
+name = "sonr_tungstenite"
 version = "0.1.0"
 authors = ["Jonas Hagstedt <hagstedt@gmail.com>"]
 edition = "2018"
@@ -8,3 +8,4 @@ edition = "2018"
 sonr = {git = "https://github.com/hagsteel/sonr.git"}
 sonr_tls = {git = "https://github.com/hagsteel/sonr-tls.git"}
 tungstenite = "0.6.1"
+url = "1.7.2"
